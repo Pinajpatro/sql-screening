@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Screening — Lenswell</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.6/fix-webm-duration.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/sql-wasm.js"></script>
+<style>
+  :root{
+    --cream:#F5F1E9;
+    --cream-2:#EFEAE0;
+    --panel:#FFFFFF;
+    --line:#E2DACB;
+    --ink:#232220;
+    --muted:#8A8378;
+    --accent:#C97B4A;
+    --accent-soft:#F0DFD1;
+    --warn:#B5482A;
+    --warn-soft:#F5E2DB;
+    --ok:#5C7A5A;
+    --serif:'Georgia', 'Iowan Old Style', serif;
+    --sans:'Inter', -apple-system, sans-serif;
+    --mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:var(--sans);
+    min-height:100vh;
+  }
+
+  .brandbar{
+    display:flex; align-items:center; padding:20px 40px; border-bottom:1px solid var(--line);
+    background:var(--cream);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand svg{width:26px; height:26px;}
+  .brand-name{font-family:var(--serif); font-size:20px; letter-spacing:0.01em;}
+
+  .wrap{max-width:860px; margin:0 auto; padding:40px 16px 90px;}
+
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.08em; color:var(--accent);
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  h1{
+    font-family:var(--serif); font-size:32px; font-weight:400; letter-spacing:-0.01em;
+    margin-bottom:10px; color:var(--ink);
+  }
+  .sub{color:var(--muted); font-size:14.5px; margin-bottom:26px; line-height:1.6;}
+  .sub b{color:var(--ink); font-weight:600;}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:26px; margin-bottom:16px;
+  }
+  .warn-card{
+    background:var(--warn-soft); border:1px solid var(--warn); border-radius:8px;
+    padding:22px 24px; margin-bottom:16px;
+  }
+  .warn-card .wtitle{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--warn); margin-bottom:10px; font-weight:700;
+  }
+  .warn-card p{font-size:14px; line-height:1.65; color:var(--ink); margin-bottom:10px;}
+  .warn-card p:last-child{margin-bottom:0;}
+
+  label{
+    display:block; font-size:11.5px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:0.06em; margin-bottom:6px; font-family:var(--mono);
+  }
+  input[type=text], input[type=email]{
+    width:100%; background:var(--cream-2); border:1px solid var(--line);
+    color:var(--ink); padding:11px 12px; border-radius:5px; font-size:14px;
+    font-family:var(--sans); margin-bottom:16px;
+  }
+  input:focus{outline:none; border-color:var(--accent);}
+
+  .btn{
+    background:var(--ink); color:var(--cream); border:none; padding:12px 22px;
+    border-radius:5px; font-weight:600; font-size:13.5px; cursor:pointer;
+    font-family:var(--sans); letter-spacing:0.02em; transition:opacity 0.15s;
+  }
+  .btn:hover{opacity:0.85;}
+  .btn:disabled{background:var(--line); color:var(--muted); cursor:not-allowed;}
+  .btn-accent{background:var(--accent); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+  .btn-ghost:hover{color:var(--ink); border-color:var(--muted); opacity:1;}
+  .btn-sm{padding:8px 16px; font-size:12.5px;}
+  .btn-row{display:flex; gap:10px; margin-top:4px; flex-wrap:wrap;}
+
+  .cam-preview{
+    width:100%; max-width:320px; aspect-ratio:4/3; background:#111; border-radius:8px;
+    overflow:hidden; margin-bottom:10px; border:1px solid var(--line);
+  }
+  .cam-preview video{width:100%; height:100%; object-fit:cover; transform:scaleX(-1);}
+  .cam-status{font-family:var(--mono); font-size:12.5px; margin-bottom:14px;}
+  .cam-status.off{color:var(--warn);}
+  .cam-status.on{color:var(--ok);}
+  .checkline{display:flex; align-items:flex-start; gap:10px; margin:16px 0; font-size:13.5px; line-height:1.5;}
+  .checkline input{margin-top:3px;}
+
+  .setup-row{display:flex; gap:22px; flex-wrap:wrap; margin-bottom:6px;}
+  .setup-item{flex:1; min-width:220px;}
+
+  .rec-pill{
+    position:fixed; top:16px; right:16px; z-index:50;
+    display:flex; align-items:center; gap:7px;
+    background:var(--ink); color:var(--cream);
+    padding:7px 13px; border-radius:20px; font-family:var(--mono); font-size:11.5px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.15);
+  }
+  .float-cam{
+    position:fixed; bottom:18px; right:18px; z-index:49;
+    width:150px; height:112px; border-radius:8px; overflow:hidden;
+    border:2px solid var(--accent); box-shadow:0 4px 16px rgba(0,0,0,0.25);
+    background:#111;
+  }
+  .float-cam video{width:100%; height:100%; object-fit:cover; transform:scaleX(-1);}
+
+  .block-overlay{
+    position:fixed; inset:0; z-index:100; background:rgba(35,34,32,0.96);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    color:var(--cream); text-align:center; padding:24px;
+  }
+  .block-overlay h2{font-family:var(--serif); font-size:26px; margin-bottom:12px; font-weight:400;}
+  .block-overlay p{color:#C9C3B6; font-size:14.5px; max-width:440px; line-height:1.6; margin-bottom:22px;}
+  .rec-pill .dot{width:8px; height:8px; border-radius:50%; background:var(--warn); animation:pulse 1.3s infinite;}
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:0.3}}
+
+  .warn-banner{
+    background:var(--accent-soft); border:1px solid var(--accent); color:var(--warn);
+    padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:16px;
+    font-family:var(--mono); display:none;
+  }
+  .warn-banner.show{display:block;}
+
+  .progress-track{height:3px; background:var(--line); border-radius:2px; margin-bottom:22px; overflow:hidden;}
+  .progress-fill{height:100%; background:var(--accent); transition:width 0.25s ease;}
+  .progress-label{
+    font-family:var(--mono); font-size:12px; color:var(--muted); margin-bottom:8px;
+    display:flex; justify-content:space-between;
+  }
+
+  .q-card{background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:20px;}
+  .q-head{display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid var(--line); background:var(--cream-2);}
+  .q-num{font-family:var(--mono); color:var(--accent); font-size:13px; font-weight:700;}
+  .q-tag{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; padding:3px 9px; border-radius:20px; font-weight:700;}
+  .q-tag.text{color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent);}
+  .q-tag.sql{color:#4A6FA5; background:#E3EAF3; border:1px solid #4A6FA5;}
+  .q-tag.oral{color:var(--ok); background:#E4EBE2; border:1px solid var(--ok);}
+  .q-body{padding:22px 20px;}
+  .q-text{font-size:15.5px; line-height:1.55; margin-bottom:18px; white-space:pre-line;}
+
+  textarea{
+    width:100%; min-height:140px; background:var(--cream-2); border:1px solid var(--line);
+    color:var(--ink); padding:12px; border-radius:5px; font-family:var(--mono); font-size:13.5px;
+    line-height:1.5; resize:vertical;
+  }
+  textarea:focus{outline:none; border-color:var(--accent);}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:6px; font-family:var(--mono);}
+
+  .oral-box{
+    background:var(--cream-2); border:1px solid var(--line); border-radius:8px; padding:18px;
+  }
+  .oral-timer{font-family:var(--mono); font-size:22px; color:var(--accent); margin-bottom:8px;}
+  .oral-actions{display:flex; gap:10px;}
+
+  .schema-panel{
+    background:var(--cream-2); border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; margin-bottom:16px; max-height:260px; overflow-y:auto;
+  }
+  .schema-panel h4{
+    font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em;
+    color:var(--accent); margin:12px 0 6px; font-weight:700;
+  }
+  .schema-panel h4:first-child{margin-top:0;}
+  .schema-table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; margin-bottom:4px;}
+  .schema-table th, .schema-table td{border:1px solid var(--line); padding:4px 8px; text-align:left;}
+  .schema-table th{background:var(--panel); color:var(--muted); font-weight:600;}
+  .schema-table td{background:var(--panel);}
+
+  .sql-editor{
+    width:100%; min-height:220px; background:#1E2430; color:#E7ECF5; border:1px solid var(--line);
+    padding:16px; border-radius:5px; font-family:var(--mono); font-size:14.5px; line-height:1.6;
+    resize:vertical;
+  }
+  .sql-editor:focus{outline:none; border-color:var(--accent);}
+  .sql-result{
+    margin-top:12px; background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; font-family:var(--mono); font-size:12px; max-height:220px; overflow:auto;
+  }
+  .sql-result table{border-collapse:collapse; width:100%;}
+  .sql-result th, .sql-result td{border:1px solid var(--line); padding:4px 8px; text-align:left;}
+  .sql-result th{background:var(--cream-2); color:var(--ink);}
+  .sql-result .err{color:var(--warn);}
+  .sql-result .empty{color:var(--muted);}
+
+  .nav-row{display:flex; justify-content:flex-end; align-items:center; margin-top:24px;}
+
+  .done-card{text-align:center; padding:40px 26px;}
+  .done-card h2{font-family:var(--serif); font-size:24px; margin-bottom:10px; font-weight:400;}
+  .done-card p{color:var(--muted); font-size:14px; margin-bottom:20px; line-height:1.6;}
+
+  .footer-note{text-align:center; color:var(--muted); font-size:12px; margin-top:28px; line-height:1.6;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div class="rec-pill hidden" id="recPill"><span class="dot"></span> RECORDING</div>
+<div class="float-cam hidden" id="floatingCamPreview"><video id="floatingCamVideo" autoplay muted playsinline></video></div>
+
+<div class="block-overlay hidden" id="blockOverlay">
+  <h2>You navigated away</h2>
+  <p id="blockOverlayMsg">Leaving this tab has been logged along with how long you were away. Click below to resume the assessment.</p>
+  <button class="btn btn-accent" id="resumeBtn">Resume assessment</button>
+</div>
+
+<div class="brandbar">
+  <div class="brand">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="17" stroke="#C97B4A" stroke-width="1.5"/>
+      <circle cx="20" cy="20" r="10" stroke="#C97B4A" stroke-width="1.5"/>
+      <circle cx="20" cy="20" r="3" fill="#C97B4A"/>
+    </svg>
+    <span class="brand-name">Lenswell</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="eyebrow">Candidate Assessment</div>
+  <h1>SQL Screening — Preliminary Round</h1>
+  <p class="sub">14 questions · <b>7 live SQL exercises</b>, <b>1 written</b>, <b>6 spoken</b> · This session records your camera, microphone, and screen throughout.</p>
+
+  <!-- INTAKE -->
+  <div id="intake">
+
+    <!-- OTP GATE -->
+    <div class="card" id="otpCard">
+      <label>Access code</label>
+      <p class="hint" style="margin-bottom:12px;">Enter the one-time code sent to you by email. It can only be used once.</p>
+      <p style="font-size:13.5px; color:var(--warn); font-weight:700; margin-bottom:14px; line-height:1.5;">
+        Once you click "Start screening," you cannot go back or pause. This code works for one attempt only — it will not work again on this or any other device.
+      </p>
+      <input type="text" id="otpInput" placeholder="e.g. 482913" style="max-width:220px; letter-spacing:0.1em; font-family:var(--mono);">
+      <div class="btn-row">
+        <button class="btn btn-accent" id="verifyOtpBtn">Verify code</button>
+      </div>
+      <p class="hint" id="otpStatus" style="margin-top:12px;"></p>
+    </div>
+
+    <div id="lockedSection" class="hidden">
+      <div class="warn-card">
+        <div class="wtitle">Before you begin</div>
+        <ul style="margin:0 0 12px 18px; padding:0; font-size:14px; line-height:1.7; color:var(--ink);">
+          <li>Your camera, microphone, and screen are recorded for the <b>entire session</b>, start to finish.</li>
+          <li><b>Any navigation away from this tab or window is tracked</b> — including switching apps, opening another tab, or minimizing the browser.</li>
+          <li>Pasting into answer boxes is disabled and logged.</li>
+          <li>Any of the above, or any other attempt at malpractice — outside help, another device, a second person — is treated as evidence and will lead to disqualification.</li>
+        </ul>
+        <p>That said: give it your honest best shot. You are not expected to get every answer perfect — we're evaluating your approach and understanding as much as the exact answer. Answer in your own words, at your own pace.</p>
+      </div>
+
+      <div class="card">
+      <div class="setup-row">
+        <div class="setup-item">
+          <label>Camera check</label>
+          <div class="cam-preview"><video id="camPreview" autoplay muted playsinline></video></div>
+          <div class="cam-status off" id="camStatus">Camera not enabled yet</div>
+        </div>
+        <div class="setup-item">
+          <label>Screen recording</label>
+          <div class="cam-status off" id="screenStatus" style="margin-top:8px;">Screen sharing not enabled yet</div>
+          <p class="hint" style="margin-bottom:14px;">Share your <b style="color:var(--ink);">entire screen</b> when prompted, not just this tab.</p>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="enableCamBtn">Enable camera, microphone &amp; screen recording</button>
+
+      <div style="margin-top:22px;">
+        <label for="cname">Your full name</label>
+        <input type="text" id="cname" placeholder="e.g. Ananya Rao">
+        <label for="cemail">Email</label>
+        <input type="email" id="cemail" placeholder="you@example.com">
+      </div>
+
+      <div class="checkline">
+        <input type="checkbox" id="honorCheck">
+        <label for="honorCheck" style="text-transform:none; font-family:var(--sans); font-size:13.5px; color:var(--ink); letter-spacing:normal;">
+          I have read the notice above and confirm I am completing this assessment myself, unaided.
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-accent" id="startBtn" disabled>Start screening</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUESTIONS -->
+  <div id="quiz" class="hidden">
+    <div class="warn-banner" id="warnBanner"></div>
+    <div class="progress-label">
+      <span id="progLabel">Question 1 of 14</span>
+      <span id="progPct">7%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progFill" style="width:7%"></div></div>
+
+    <div class="q-card">
+      <div class="q-head">
+        <span class="q-num" id="qNum">Q1</span>
+        <span class="q-tag text" id="qTag">TEXT</span>
+      </div>
+      <div class="q-body">
+        <div class="q-text" id="qText">Loading...</div>
+
+        <div id="textAnswerBox">
+          <textarea id="textAnswer" placeholder="Type your answer here..."></textarea>
+          <div class="hint">No need to format perfectly. Pasting is disabled for this assessment.</div>
+        </div>
+
+        <div id="sqlAnswerBox" class="hidden">
+          <div class="schema-panel" id="schemaPanel"></div>
+          <textarea class="sql-editor" id="sqlAnswer" placeholder="Write your SQL query here..." spellcheck="false"></textarea>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" id="runSqlBtn">Run query</button>
+          </div>
+          <div class="sql-result" id="sqlResult"><span class="empty">Results will appear here after you run your query.</span></div>
+          <div class="hint">Pasting is disabled. Run your query as many times as you like — your final query text is what gets submitted.</div>
+        </div>
+
+        <div id="oralAnswerBox" class="hidden">
+          <div class="oral-box">
+            <div class="oral-timer" id="oralTimer">00:00</div>
+            <div class="hint" id="speechStatus" style="margin-bottom:8px;">Speech capture: starting...</div>
+            <div class="hint" style="margin-bottom:12px;">Speak your answer out loud — this is captured in your session recording. Click "Mark answered" when done — it takes a couple of seconds to finish capturing your transcript before you can continue.</div>
+            <button class="btn btn-ghost" id="markAnsweredBtn">Mark answered</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-accent" id="nextBtn">Next →</button>
+    </div>
+  </div>
+
+  <!-- DONE -->
+  <div id="done" class="hidden">
+    <div class="card done-card">
+      <h2>That's a wrap</h2>
+      <p>Click below to finalize your recording and download your submission file.<br>Email the downloaded .zip to your interviewer to complete the screening.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <button class="btn btn-accent" id="buildBtn">Finish &amp; download submission</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">Lenswell · SQL Preliminary Screening · Your camera, microphone, screen, and tab activity are recorded locally and included in your submission for interviewer review.</div>
+</div>
+
+<canvas id="compositeCanvas" width="960" height="540" style="display:none;"></canvas>
+<video id="screenVideoEl" autoplay muted playsinline style="position:fixed; left:-9999px; top:-9999px; width:2px; height:2px; opacity:0;"></video>
+<video id="camVideoHidden" autoplay muted playsinline style="position:fixed; left:-9999px; top:-9999px; width:2px; height:2px; opacity:0;"></video>
+
+<script>
+// ---- CONFIG: paste your deployed Google Apps Script Web App URL here ----
+const OTP_VALIDATION_URL = "https://script.google.com/macros/s/AKfycbz3n1y7J0YKGrxB5GwxZL5tUb-ba8rWbbTCNP365KSZPd6fIcHHZdg--hHMn9cHVl6v/exec";
+
+let otpVerified = false;
+let verifiedOtp = '';
+
+// ---- Sample data tables for each SQL exercise ----
+const T_Q1 = {
+  name:'Employee', columns:['EmpID','Name','Salary'],
+  rows:[[1,'John',50000],[2,'Alice',70000],[3,'Bob',60000],[4,'David',70000]]
+};
+
+const T_Q2 = {
+  name:'Employee', columns:['EmployeeID','EmployeeName','Department','Salary'],
+  rows:[
+    [101,'Alice','Engineering',90000],[102,'Bob','Engineering',85000],[103,'Carol','Engineering',85000],
+    [104,'Dave','Engineering',80000],[105,'Eve','Engineering',75000],
+    [201,'Frank','Sales',70000],[202,'Grace','Sales',65000],[203,'Heidi','Sales',65000],[204,'Ivan','Sales',60000],
+    [301,'Judy','HR',55000],[302,'Mallory','HR',50000],
+    [401,'Niaj','Marketing',72000],[402,'Olivia','Marketing',70000],[403,'Peggy','Marketing',68000],
+    [404,'Quentin','Marketing',68000],[405,'Romeo','Marketing',65000]
+  ]
+};
+
+const T_Q3 = {
+  name:'Employee', columns:['EmployeeID','EmployeeName','Department','Salary','Status'],
+  rows:[
+    [101,'Alice','Engineering',90000,'Active'],[102,'Bob','Engineering',85000,'Active'],[103,'Carol','Engineering',85000,'Inactive'],
+    [104,'Dave','Engineering',80000,'Active'],[105,'Eve','Engineering',75000,'Active'],
+    [201,'Frank','Sales',70000,'Active'],[202,'Grace','Sales',65000,'Active'],[203,'Heidi','Sales',65000,'Inactive'],[204,'Ivan','Sales',60000,'Active'],
+    [301,'Judy','HR',55000,'Active'],[302,'Mallory','HR',50000,'Active'],
+    [401,'Niaj','Marketing',72000,'Active'],[402,'Olivia','Marketing',70000,'Active'],[403,'Peggy','Marketing',68000,'Active'],
+    [404,'Quentin','Marketing',68000,'Inactive'],[405,'Romeo','Marketing',65000,'Active']
+  ]
+};
+
+const T_Q5_ORDERS = {
+  name:'Orders', columns:['OrderID','CustomerID','OrderDate','Amount'],
+  rows:[[1001,'C1','2026-01-05',500],[1002,'C2','2026-01-06',700],[1003,'C1','2026-01-07',300],[1004,'C3','2026-01-08',900],[1005,'C2','2026-01-09',450]]
+};
+const T_Q5_PAYMENTS = {
+  name:'Payments', columns:['PaymentID','OrderID','PaymentDate','Amount'],
+  rows:[[1,1001,'2026-01-06',500],[2,1002,'2026-01-07',700],[3,1004,'2026-01-09',900]]
+};
+
+const T_Q6 = {
+  name:'UserLogin', columns:['UserID','LoginDate'],
+  rows:[
+    ['U1','2026-01-01'],['U1','2026-01-02'],['U1','2026-01-03'],
+    ['U2','2026-01-01'],['U2','2026-01-03'],['U2','2026-01-05'],
+    ['U3','2026-02-10'],['U3','2026-02-11'],['U3','2026-02-12'],['U3','2026-02-13'],
+    ['U4','2026-03-01'],['U4','2026-03-02']
+  ]
+};
+
+const T_Q7 = {
+  name:'Employee', columns:['EmpID','Name','Department','Salary'],
+  rows:[
+    [601,'Alice','Engineering',90000],[602,'Bob','Engineering',85000],[603,'Carol','Engineering',80000],[604,'Dave','Engineering',75000],[605,'Eve','Engineering',70000],
+    [701,'Frank','Sales',72000],[702,'Grace','Sales',68000],[703,'Heidi','Sales',65000],[704,'Ivan','Sales',60000],
+    [801,'Judy','Support',50000],[802,'Mallory','Support',48000]
+  ]
+};
+
+const T_Q8_CUSTOMERS = {
+  name:'Customers', columns:['CustomerID','CustomerName'],
+  rows:[[1,'Alpha Corp'],[2,'Beta Ltd'],[3,'Gamma Inc'],[4,'Delta LLC']]
+};
+const T_Q8_ORDERS = {
+  name:'Orders', columns:['OrderID','CustomerID','OrderDate','Amount'],
+  rows:[
+    [101,1,'2026-01-05',12000],[102,1,'2026-01-25',9000],[103,1,'2026-02-10',11000],[104,1,'2026-03-01',8000],[105,1,'2026-03-20',7000],[106,1,'2026-04-05',6000],
+    [201,2,'2026-01-02',15000],[202,2,'2026-01-08',12000],[203,2,'2026-01-14',11000],[204,2,'2026-01-20',10000],[205,2,'2026-01-26',9000],
+    [301,3,'2026-01-03',5000],[302,3,'2026-02-05',4000],[303,3,'2026-02-20',3000],[304,3,'2026-03-10',4000],[305,3,'2026-03-25',3000],
+    [401,4,'2026-01-05',10000],[402,4,'2026-01-20',9000],[403,4,'2026-02-01',8000],[404,4,'2026-04-01',12000],[405,4,'2026-04-15',9000],[406,4,'2026-05-01',8000]
+  ]
+};
+
+const QUESTIONS = [
+  {type:'sql', tag:'SQL', q:'Table: Employee(EmpID, Name, Salary)\n\nWrite a SQL query to find the second highest distinct salary.', tables:[T_Q1]},
+  {type:'sql', tag:'SQL', q:"Your organization wants to identify the third highest distinct salary in each department for salary benchmarking. If a department has fewer than three distinct salary values, it should not appear in the result.\n\nTable: Employee(EmployeeID, EmployeeName, Department, Salary)\n\nWrite a query to return: Department, Employee Name, and the third highest distinct salary. If multiple employees share that salary, return all of them.", tables:[T_Q2]},
+  {type:'sql', tag:'SQL', q:'Your HR team wants to identify employees eligible for a special bonus:\n- Only Active employees are considered.\n- Employees must have the third highest distinct salary within their department.\n- Departments with fewer than three distinct salaries should be excluded.\n- If multiple employees qualify due to a salary tie, all should be included.\n\nTable: Employee(EmployeeID, EmployeeName, Department, Salary, Status)\n\nReturn: EmployeeID, Employee Name, Department, Salary.', tables:[T_Q3]},
+  {type:'text', q:"The CEO says yesterday's sales report shows zero revenue, but the application is working correctly. As a Data Analyst, how would you investigate the issue using SQL? Walk through your approach step by step."},
+  {type:'sql', tag:'SQL', q:'The finance team reports that some orders are missing from the payment table.\n\nTables: Orders(OrderID, CustomerID, OrderDate, Amount), Payments(PaymentID, OrderID, PaymentDate, Amount)\n\nWrite a SQL query to identify orders that do not have a corresponding payment record.', tables:[T_Q5_ORDERS, T_Q5_PAYMENTS]},
+  {type:'sql', tag:'SQL', q:'Table: UserLogin(UserID, LoginDate)\n\nFind users who logged in for 3 or more consecutive days.', tables:[T_Q6]},
+  {type:'sql', tag:'SQL', q:'Table: Employee(EmpID, Name, Department, Salary)\n\nWrite a query to retrieve the top 3 highest-paid employees in each department.', tables:[T_Q7]},
+  {type:'sql', tag:'SQL', q:'Tables: Customers(CustomerID, CustomerName), Orders(OrderID, CustomerID, OrderDate, Amount)\n\nManagement wants to identify consistent high-value customers. Write a SQL query to return customers who satisfy ALL of the following:\n- Placed at least 5 orders.\n- Have a total spend greater than ₹50,000.\n- Placed orders in at least 3 different months.\n- Have not gone more than 45 days between any two consecutive orders.', tables:[T_Q8_CUSTOMERS, T_Q8_ORDERS]},
+  {type:'oral', q:'In your own words, explain database normalization and why 3NF matters in practice.'},
+  {type:'oral', q:'Walk through your approach to diagnosing and optimizing a SQL query that has suddenly become slow in production.'},
+  {type:'oral', q:'Explain the ACID properties of a database transaction, and give a real-world example where one of them matters.'},
+  {type:'oral', q:'How do NULLs behave in aggregate functions like COUNT, SUM, and AVG? Explain with an example that could trip someone up.'},
+  {type:'oral', q:'Explain the difference between a clustered and a non-clustered index.'},
+  {type:'oral', q:"Describe a real SQL problem you solved at work — what was tricky about it, and how did you approach it?"}
+];
+
+let current = 0;
+const answers = QUESTIONS.map(q => ({type:q.type, text:'', oralMarked:false, oralStart:null, oralEnd:null, oralTranscript:'', lastSqlResultSummary:null}));
+
+let recognition = null;
+let speechSupported = ('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window);
+let lastSpeechStatus = '';
+
+function setSpeechStatus(msg){
+  lastSpeechStatus = msg;
+  const s = document.getElementById('speechStatus');
+  if(s) s.textContent = 'Speech capture: ' + msg;
+}
+
+let permissionDenied = false;
+
+function startRecognition(){
+  if(!speechSupported){
+    setSpeechStatus('not supported in this browser — use Chrome or Edge. Your recording still captures the audio.');
+    return;
+  }
+  if(permissionDenied){
+    setSpeechStatus('microphone access was denied for transcription — your video/audio recording still has the answer.');
+    return;
+  }
+  if(recognition) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+  recognition.onstart = () => setSpeechStatus('listening...');
+  recognition.onresult = (e) => {
+    if(!QUESTIONS[current] || QUESTIONS[current].type !== 'oral') return;
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal){
+        const chunk = e.results[i][0].transcript.trim();
+        answers[current].oralTranscript += chunk + ' ';
+        setSpeechStatus('captured: "...' + chunk.slice(-40) + '"');
+      }
+    }
+  };
+  recognition.onerror = (e) => {
+    if(e.error === 'not-allowed' || e.error === 'permission-denied' || e.error === 'service-not-allowed'){
+      permissionDenied = true;
+      setSpeechStatus('microphone access denied for transcription — your video/audio recording still has the answer.');
+      recognition = null;
+      return;
+    }
+    setSpeechStatus('paused (' + e.error + ') — your video/audio recording still has the answer.');
+  };
+  recognition.onend = () => {
+    const stillActive = recognition && !permissionDenied && QUESTIONS[current] && QUESTIONS[current].type === 'oral';
+    recognition = null;
+    if(stillActive){
+      setTimeout(() => { if(QUESTIONS[current] && QUESTIONS[current].type === 'oral') startRecognition(); }, 400);
+    }
+  };
+  try{
+    recognition.start();
+    setSpeechStatus('starting...');
+  }catch(e){
+    setSpeechStatus('failed to start (' + e.message + ')');
+    recognition = null;
+  }
+}
+
+function stopRecognition(){
+  if(recognition){
+    const r = recognition;
+    recognition = null;
+    try{ r.onend = null; r.stop(); }catch(e){}
+  }
+}
+
+// ---- sql.js engine ----
+let SQLEngine = null;
+let sqlEngineReady = initSqlJs({ locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.2/dist/${file}` })
+  .then(SQL => { SQLEngine = SQL; })
+  .catch(() => { SQLEngine = null; });
+
+function buildDbForTables(tables){
+  const db = new SQLEngine.Database();
+  tables.forEach(t => {
+    const cols = t.columns.join(', ');
+    db.run(`CREATE TABLE ${t.name} (${cols});`);
+    const placeholders = t.columns.map(() => '?').join(',');
+    const stmt = db.prepare(`INSERT INTO ${t.name} VALUES (${placeholders})`);
+    t.rows.forEach(row => { stmt.run(row); });
+    stmt.free();
+  });
+  return db;
+}
+
+function renderSchemaPanel(tables){
+  let html = '';
+  tables.forEach(t => {
+    html += `<h4>${t.name}</h4><table class="schema-table"><thead><tr>${t.columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    t.rows.forEach(row => {
+      html += `<tr>${row.map(v=>`<td>${v}</td>`).join('')}</tr>`;
+    });
+    html += '</tbody></table>';
+  });
+  el('schemaPanel').innerHTML = html;
+}
+
+function renderSqlResult(el_, res, err){
+  if(err){
+    el_.innerHTML = `<span class="err">Error: ${err}</span>`;
+    return;
+  }
+  if(!res || res.length === 0){
+    el_.innerHTML = '<span class="empty">Query ran successfully — no rows returned.</span>';
+    return;
+  }
+  const {columns, values} = res[0];
+  let html = `<table><thead><tr>${columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+  values.forEach(row => {
+    html += `<tr>${row.map(v=>`<td>${v === null ? 'NULL' : v}</td>`).join('')}</tr>`;
+  });
+  html += '</tbody></table>';
+  html += `<div class="hint" style="margin-top:6px;">${values.length} row${values.length === 1 ? '' : 's'} returned</div>`;
+  el_.innerHTML = html;
+}
+
+function runCurrentSql(){
+  const q = QUESTIONS[current];
+  const resultEl = el('sqlResult');
+  if(!SQLEngine){
+    resultEl.innerHTML = '<span class="empty">SQL engine still loading — try again in a moment.</span>';
+    return;
+  }
+  const query = el('sqlAnswer').value;
+  if(!query.trim()){
+    resultEl.innerHTML = '<span class="empty">Write a query above, then click Run.</span>';
+    return;
+  }
+  try{
+    const db = buildDbForTables(q.tables);
+    const res = db.exec(query);
+    renderSqlResult(resultEl, res, null);
+    if(res && res[0]){
+      answers[current].lastSqlResultSummary = { columns: res[0].columns, values: res[0].values, rowCount: res[0].values.length };
+    } else {
+      answers[current].lastSqlResultSummary = { columns: [], values: [], rowCount: 0 };
+    }
+    db.close();
+  }catch(err){
+    renderSqlResult(resultEl, null, err.message);
+    answers[current].lastSqlResultSummary = { error: err.message };
+  }
+}
+
+let camStream = null;
+let screenStream = null;
+let combinedStream = null;
+let sessionRecorder = null;
+let sessionChunks = [];
+let sessionStartTime = null;
+let oralTimerInterval = null;
+let drawLoopId = null;
+
+const integrity = {
+  tabSwitches: [],
+  pasteAttempts: [],
+  screenShareStopped: []
+};
+
+const el = id => document.getElementById(id);
+
+// ---- OTP gate ----
+el('verifyOtpBtn').addEventListener('click', async () => {
+  const otp = el('otpInput').value.trim();
+  if(!otp){ el('otpStatus').textContent = 'Enter the code from your email.'; return; }
+  if(OTP_VALIDATION_URL.indexOf('PASTE_YOUR') === 0){
+    el('otpStatus').textContent = 'Access code system is not configured yet — contact your interviewer.';
+    return;
+  }
+  el('verifyOtpBtn').disabled = true;
+  el('verifyOtpBtn').textContent = 'Checking...';
+  el('otpStatus').textContent = '';
+  try{
+    const res = await fetch(`${OTP_VALIDATION_URL}?otp=${encodeURIComponent(otp)}`);
+    const data = await res.json();
+    if(data.valid){
+      otpVerified = true;
+      verifiedOtp = otp;
+      el('otpCard').classList.add('hidden');
+      el('lockedSection').classList.remove('hidden');
+      if(data.candidateName){ el('cname').value = data.candidateName; }
+      if(data.candidateEmail){ el('cemail').value = data.candidateEmail; }
+      checkStartEnabled();
+    } else if(data.reason === 'used'){
+      el('otpStatus').textContent = 'This code has already been used. Contact your interviewer if this is unexpected.';
+      el('otpStatus').style.color = 'var(--warn)';
+    } else {
+      el('otpStatus').textContent = 'Invalid code. Please check and try again.';
+      el('otpStatus').style.color = 'var(--warn)';
+    }
+  }catch(err){
+    el('otpStatus').textContent = 'Could not verify code — check your internet connection and try again.';
+    el('otpStatus').style.color = 'var(--warn)';
+  }
+  el('verifyOtpBtn').disabled = false;
+  el('verifyOtpBtn').textContent = 'Verify code';
+});
+
+// ---- Camera + mic + screen gate ----
+el('enableCamBtn').addEventListener('click', async () => {
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{width:320, height:240}, audio:true});
+    el('camPreview').srcObject = camStream;
+    el('camVideoHidden').srcObject = camStream;
+    el('floatingCamVideo').srcObject = camStream;
+    el('camPreview').play().catch(()=>{});
+    el('camVideoHidden').play().catch(()=>{});
+    el('floatingCamVideo').play().catch(()=>{});
+    el('camStatus').textContent = 'Camera & microphone enabled';
+    el('camStatus').className = 'cam-status on';
+  }catch(err){
+    el('camStatus').textContent = 'Camera/mic access denied — required to proceed.';
+    el('camStatus').className = 'cam-status off';
+    return;
+  }
+
+  try{
+    screenStream = await navigator.mediaDevices.getDisplayMedia({video:{width:1280, height:720}, audio:false});
+    el('screenVideoEl').srcObject = screenStream;
+    el('screenVideoEl').play().catch(()=>{});
+    el('screenStatus').textContent = 'Screen sharing enabled';
+    el('screenStatus').className = 'cam-status on';
+    screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+      integrity.screenShareStopped.push(fmtTime(elapsedSec()));
+      showWarning('Screen sharing was stopped — this has been logged.');
+    });
+  }catch(err){
+    el('screenStatus').textContent = 'Screen sharing declined — required to proceed.';
+    el('screenStatus').className = 'cam-status off';
+    return;
+  }
+
+  el('enableCamBtn').textContent = 'Camera & screen enabled ✓';
+  el('enableCamBtn').disabled = true;
+  checkStartEnabled();
+});
+
+['input'].forEach(evt => {
+  el('cname').addEventListener(evt, checkStartEnabled);
+  el('cemail').addEventListener(evt, checkStartEnabled);
+});
+el('honorCheck').addEventListener('change', checkStartEnabled);
+
+function checkStartEnabled(){
+  const ok = otpVerified && camStream && screenStream && el('cname').value.trim() && el('cemail').value.trim() && el('honorCheck').checked;
+  el('startBtn').disabled = !ok;
+}
+
+function logAttempt(){
+  if(!verifiedOtp || OTP_VALIDATION_URL.indexOf('PASTE_YOUR') === 0) return;
+  const name = el('cname').value.trim();
+  const email = el('cemail').value.trim();
+  fetch(`${OTP_VALIDATION_URL}?log=1&otp=${encodeURIComponent(verifiedOtp)}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`).catch(()=>{});
+}
+
+el('startBtn').addEventListener('click', () => {
+  el('intake').classList.add('hidden');
+  el('quiz').classList.remove('hidden');
+  startCompositeRecording();
+  attachIntegrityListeners();
+  el('floatingCamPreview').classList.remove('hidden');
+  logAttempt();
+  renderQuestion();
+});
+
+// ---- Composite (screen + webcam PiP) session recording ----
+function startCompositeRecording(){
+  const canvas = el('compositeCanvas');
+  const ctx = canvas.getContext('2d');
+  const screenVideoEl = el('screenVideoEl');
+  const camVideoEl = el('camVideoHidden');
+
+  function draw(){
+    if(screenVideoEl.readyState >= 2){
+      ctx.drawImage(screenVideoEl, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = '#111'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    if(camVideoEl.readyState >= 2){
+      const pw = 176, ph = 132, px = canvas.width - pw - 14, py = canvas.height - ph - 14;
+      ctx.save();
+      ctx.strokeStyle = '#C97B4A'; ctx.lineWidth = 3;
+      ctx.strokeRect(px, py, pw, ph);
+      ctx.drawImage(camVideoEl, px, py, pw, ph);
+      ctx.restore();
+    }
+    drawLoopId = requestAnimationFrame(draw);
+  }
+  draw();
+
+  const canvasStream = canvas.captureStream(12);
+  combinedStream = new MediaStream([
+    ...canvasStream.getVideoTracks(),
+    ...camStream.getAudioTracks()
+  ]);
+
+  sessionChunks = [];
+  let mimeType = 'video/webm;codecs=vp8,opus';
+  if(!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+  sessionRecorder = new MediaRecorder(combinedStream, {mimeType, videoBitsPerSecond:450000});
+  sessionRecorder.ondataavailable = e => { if(e.data.size > 0) sessionChunks.push(e.data); };
+  sessionRecorder.start(1000);
+  sessionStartTime = Date.now();
+  el('recPill').classList.remove('hidden');
+}
+
+function elapsedSec(){ return Math.floor((Date.now() - sessionStartTime)/1000); }
+function fmtTime(sec){
+  const m = String(Math.floor(sec/60)).padStart(2,'0');
+  const s = String(sec%60).padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+// ---- Integrity: tab switch / paste blocking ----
+let tabHiddenAt = null;
+
+function attachIntegrityListeners(){
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){
+      tabHiddenAt = Date.now();
+      integrity.tabSwitches.push({start: fmtTime(elapsedSec()), awaySeconds: null});
+    } else if(tabHiddenAt){
+      const awaySec = Math.round((Date.now() - tabHiddenAt) / 1000);
+      integrity.tabSwitches[integrity.tabSwitches.length - 1].awaySeconds = awaySec;
+      tabHiddenAt = null;
+      el('blockOverlayMsg').textContent = `You were away for about ${awaySec} second${awaySec === 1 ? '' : 's'}. This has been logged. Click below to resume the assessment.`;
+      el('blockOverlay').classList.remove('hidden');
+    }
+  });
+}
+
+el('resumeBtn').addEventListener('click', () => {
+  el('blockOverlay').classList.add('hidden');
+});
+
+function showWarning(msg){
+  const b = el('warnBanner');
+  b.textContent = '⚠ ' + msg;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 4000);
+}
+
+function blockPaste(e){
+  e.preventDefault();
+  integrity.pasteAttempts.push(fmtTime(elapsedSec()));
+  showWarning('Pasting is disabled for this assessment — attempt logged.');
+}
+
+// ---- Question rendering ----
+function renderQuestion(){
+  const q = QUESTIONS[current];
+  el('qNum').textContent = 'Q' + (current+1);
+  el('qTag').textContent = q.type === 'sql' ? 'SQL' : (q.type === 'text' ? 'TEXT' : 'ORAL');
+  el('qTag').className = 'q-tag ' + q.type;
+  el('qText').textContent = q.q;
+  el('progLabel').textContent = `Question ${current+1} of ${QUESTIONS.length}`;
+  const pct = Math.round(((current+1)/QUESTIONS.length)*100);
+  el('progPct').textContent = pct + '%';
+  el('progFill').style.width = pct + '%';
+
+  clearInterval(oralTimerInterval);
+  el('textAnswerBox').classList.add('hidden');
+  el('sqlAnswerBox').classList.add('hidden');
+  el('oralAnswerBox').classList.add('hidden');
+
+  if(q.type === 'text'){
+    el('textAnswerBox').classList.remove('hidden');
+    el('textAnswer').value = answers[current].text;
+    el('textAnswer').removeEventListener('paste', blockPaste);
+    el('textAnswer').addEventListener('paste', blockPaste);
+    stopRecognition();
+  } else if(q.type === 'sql'){
+    el('sqlAnswerBox').classList.remove('hidden');
+    renderSchemaPanel(q.tables);
+    el('sqlAnswer').value = answers[current].text;
+    el('sqlResult').innerHTML = '<span class="empty">Results will appear here after you run your query.</span>';
+    el('sqlAnswer').removeEventListener('paste', blockPaste);
+    el('sqlAnswer').addEventListener('paste', blockPaste);
+    stopRecognition();
+  } else {
+    el('oralAnswerBox').classList.remove('hidden');
+    if(!answers[current].oralStart){
+      answers[current].oralStart = fmtTime(elapsedSec());
+    }
+    const qStartSec = elapsedSec();
+    oralTimerInterval = setInterval(() => {
+      el('oralTimer').textContent = fmtTime(elapsedSec() - qStartSec);
+    }, 500);
+    el('markAnsweredBtn').textContent = answers[current].oralMarked ? 'Answered ✓ (click to re-mark)' : 'Mark answered';
+    startRecognition();
+  }
+  el('nextBtn').textContent = current === QUESTIONS.length - 1 ? 'Finish' : 'Next →';
+  updateNextButtonState();
+}
+
+function updateNextButtonState(){
+  const q = QUESTIONS[current];
+  const enabled = (q.type === 'text' || q.type === 'sql')
+    ? answers[current].text.trim().length > 0
+    : answers[current].oralMarked;
+  el('nextBtn').disabled = !enabled;
+}
+
+el('textAnswer').addEventListener('input', e => { answers[current].text = e.target.value; updateNextButtonState(); });
+el('sqlAnswer').addEventListener('input', e => { answers[current].text = e.target.value; updateNextButtonState(); });
+el('runSqlBtn').addEventListener('click', runCurrentSql);
+
+el('markAnsweredBtn').addEventListener('click', () => {
+  if(answers[current].oralMarked){
+    answers[current].oralEnd = fmtTime(elapsedSec());
+    return;
+  }
+  el('markAnsweredBtn').disabled = true;
+  el('markAnsweredBtn').textContent = 'Finalizing transcript...';
+  setSpeechStatus('finishing up — capturing the last few seconds...');
+  setTimeout(() => {
+    answers[current].oralMarked = true;
+    answers[current].oralEnd = fmtTime(elapsedSec());
+    el('markAnsweredBtn').disabled = false;
+    el('markAnsweredBtn').textContent = 'Answered ✓ (click to re-mark)';
+    setSpeechStatus('done for this question.');
+    updateNextButtonState();
+  }, 1800);
+});
+
+el('nextBtn').addEventListener('click', () => {
+  if(current < QUESTIONS.length - 1){
+    current++;
+    renderQuestion();
+  } else {
+    clearInterval(oralTimerInterval);
+    stopRecognition();
+    el('quiz').classList.add('hidden');
+    el('done').classList.remove('hidden');
+  }
+});
+
+el('buildBtn').addEventListener('click', async () => {
+  el('buildBtn').disabled = true;
+  el('buildBtn').textContent = 'Finalizing recording...';
+
+  const finalizeAndZip = async () => {
+    cancelAnimationFrame(drawLoopId);
+    const zip = new JSZip();
+    const name = el('cname').value.trim();
+    const email = el('cemail').value.trim();
+    const safeName = name.replace(/[^a-z0-9]/gi, '_');
+
+    let doc = `SQL SCREENING — SUBMISSION\nCandidate: ${name}\nEmail: ${email}\nDate: ${new Date().toISOString().slice(0,10)}\nSession duration: ${fmtTime(elapsedSec())}\n\n`;
+    const tabSwitchSummary = integrity.tabSwitches.map(t => `${t.start} (away ${t.awaySeconds !== null ? t.awaySeconds + 's' : 'still away at submit'})`).join('; ');
+    doc += `INTEGRITY LOG\nTab switches (${integrity.tabSwitches.length}): ${tabSwitchSummary || 'none'}\nPaste attempts blocked (${integrity.pasteAttempts.length}): ${integrity.pasteAttempts.join(', ') || 'none'}\nScreen share interruptions (${integrity.screenShareStopped.length}): ${integrity.screenShareStopped.join(', ') || 'none'}\n`;
+    doc += `Full session recording (screen + webcam + audio): session_recording_${safeName}.webm\n`;
+    doc += `Tamper-detection hash for submission.json: see ${safeName}_integrity_hash.txt\n`;
+
+    QUESTIONS.forEach((q, i) => {
+      const a = answers[i];
+      if(q.type === 'text'){
+        doc += `\n---------------------------------------------\nQ${i+1} (WRITTEN): ${q.q}\n\nAnswer:\n${a.text.trim() || '[No answer provided]'}\n`;
+      } else if(q.type === 'sql'){
+        let summary;
+        if(!a.lastSqlResultSummary){
+          summary = 'Query was not run before moving on.';
+        } else if(a.lastSqlResultSummary.error){
+          summary = `Last run: error — ${a.lastSqlResultSummary.error}`;
+        } else {
+          const r = a.lastSqlResultSummary;
+          if(r.rowCount === 0){
+            summary = 'Last run: 0 rows returned.';
+          } else {
+            const header = r.columns.join(' | ');
+            const sep = r.columns.map(() => '---').join(' | ');
+            const dataRows = r.values.map(row => row.map(v => v === null ? 'NULL' : v).join(' | ')).join('\n');
+            summary = `Last run result (${r.rowCount} row${r.rowCount === 1 ? '' : 's'}):\n${header}\n${sep}\n${dataRows}`;
+          }
+        }
+        doc += `\n---------------------------------------------\nQ${i+1} (SQL): ${q.q}\n\nQuery submitted:\n${a.text.trim() || '[No query provided]'}\n\n${summary}\n`;
+      } else {
+        doc += `\n---------------------------------------------\nQ${i+1} (ORAL): ${q.q}\nAnswered in session recording between ${a.oralStart || '?'} and ${a.oralEnd || '[not marked]'}\nAuto transcript (may contain errors): ${a.oralTranscript.trim() || '[No transcript captured]'}\n`;
+      }
+    });
+
+    zip.file(`${safeName}_answers.txt`, doc);
+
+    const submission = {
+      candidate: {name, email},
+      date: new Date().toISOString().slice(0,10),
+      sessionDurationSec: elapsedSec(),
+      integrity: {
+        tabSwitches: integrity.tabSwitches,
+        pasteAttemptsBlocked: integrity.pasteAttempts,
+        screenShareInterruptions: integrity.screenShareStopped
+      },
+      questions: QUESTIONS.map((q, i) => {
+        const a = answers[i];
+        if(q.type === 'text'){
+          return {index:i+1, type:'text', question:q.q, answer:a.text.trim()};
+        }
+        if(q.type === 'sql'){
+          return {index:i+1, type:'sql', question:q.q, query:a.text.trim(), lastRunResult:a.lastSqlResultSummary};
+        }
+        return {index:i+1, type:'oral', question:q.q, marked:a.oralMarked, videoTimestampStart:a.oralStart, videoTimestampEnd:a.oralEnd, autoTranscript:a.oralTranscript.trim(), note:'Transcript is auto-generated by browser speech recognition and may contain errors — audio/video in session_recording is the source of truth.'};
+      })
+    };
+    const submissionJsonStr = JSON.stringify(submission, null, 2);
+    zip.file(`${safeName}_submission.json`, submissionJsonStr);
+
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(submissionJsonStr));
+    const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const integrityNote = `TAMPER-DETECTION HASH\n\nThis is a SHA-256 fingerprint of the exact content of ${safeName}_submission.json at the moment it was generated.\n\nTo verify: recompute the SHA-256 hash of ${safeName}_submission.json exactly as received. If it does not match the value below, the file's content was changed after this was generated.\n\nSHA-256: ${hashHex}\n\nGenerated: ${new Date().toISOString()}\n`;
+    zip.file(`${safeName}_integrity_hash.txt`, integrityNote);
+
+    const rawVideoBlob = new Blob(sessionChunks, {type:'video/webm'});
+    const recordedDurationMs = Date.now() - sessionStartTime;
+
+    let videoBlob = rawVideoBlob;
+    if(typeof ysFixWebmDuration === 'function'){
+      try{
+        videoBlob = await new Promise((resolve) => {
+          ysFixWebmDuration(rawVideoBlob, recordedDurationMs, (fixed) => resolve(fixed || rawVideoBlob));
+        });
+      }catch(e){
+        videoBlob = rawVideoBlob;
+      }
+    }
+    zip.file(`session_recording_${safeName}.webm`, videoBlob);
+
+    const content = await zip.generateAsync({type:'blob'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `SQL_Screening_${safeName}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    el('buildBtn').disabled = false;
+    el('buildBtn').textContent = 'Download again';
+    el('buildBtn').insertAdjacentHTML('afterend', '<p class="hint" style="margin-top:10px; color:var(--ok);">Zip downloaded. Please email this file to your interviewer to complete the screening.</p>');
+    el('recPill').classList.add('hidden');
+  };
+
+  if(sessionRecorder && sessionRecorder.state !== 'inactive'){
+    sessionRecorder.onstop = finalizeAndZip;
+    sessionRecorder.stop();
+    camStream.getTracks().forEach(t => t.stop());
+    screenStream.getTracks().forEach(t => t.stop());
+  } else {
+    finalizeAndZip();
+  }
+});
+</script>
+</body>
+</html>
